@@ -15,10 +15,10 @@ cmake --build . --clean-first
 ```
   
 ##### VSCode CMake tools
-`CMake: Select Configure Preset`
-`CMake: Configure`
-`CMake: Select Build Preset`
-`CMake: Build`
+`CMake: Select Configure Preset`  
+`CMake: Configure`  
+`CMake: Select Build Preset`  
+`CMake: Build`  
 
 #### 3. houdini.env
 ```
