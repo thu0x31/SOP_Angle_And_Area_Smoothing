@@ -90,7 +90,6 @@ private:
 
     auto smoothing(TriangleMesh&& triangleMesh) const
     {
-        
         auto&& eif = get(CGAL::edge_is_feature, triangleMesh);
         int32 angle = 60; //TODO: パラメータ化
         CGAL::Polygon_mesh_processing::detect_sharp_edges(triangleMesh, angle, eif);
@@ -120,20 +119,24 @@ private:
     	GA_Offset pointOffset;
     	GA_FOR_ALL_PTOFF(geo, pointOffset)
     	{
-            Phandle.set(pointOffset, {0,0,0});
+            auto&& pos = smoothedMesh.point(indexMap[static_cast<int>(pointOffset)]);
+            Phandle.set(pointOffset, UT_Vector3F(pos.x(),pos.y(),pos.z()));
     	}
     }
 
 public:
     virtual void cook(const CookParms &cookparms) const
     {
-        if (!cookparms.inputGeo(0))
-            return;
+        auto&& outputGeo = cookparms.gdh().gdpNC();
 
-        auto&& geo = cookparms.gdh().gdpNC();
-        auto&& [triangleMesh, indexmap] = this->toSurfaceMesh(geo);
+        auto&& inputGeo = cookparms.inputGeo(0);
+        UT_ASSERT(inputGeo);
+
+        outputGeo->replaceWith(*inputGeo);
+
+        auto&& [triangleMesh, indexmap] = this->toSurfaceMesh(outputGeo);
         auto&& smoothedMesh = this->smoothing(std::move(triangleMesh));
-        this->transferP(geo, std::move(indexmap), std::move(smoothedMesh));
+        this->transferP(outputGeo, std::move(indexmap), std::move(smoothedMesh));
     }
 
 };

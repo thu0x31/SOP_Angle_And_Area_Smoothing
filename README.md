@@ -3,10 +3,17 @@ WIP
 ### 1. Installing CGAL with Vcpkg
 https://doc.cgal.org/latest/Manual/windows.html
 ```
-> .\vcpkg.exe install cgal:x64-windows
+> ./vcpkg.exe install cgal:x64-windows
+```
+
+### 2. Installing Ceres with Vcpkg
+http://ceres-solver.org/installation.html
+```
+> ./vcpkg.exe install ceres:x64-windows
+> ./vcpkg.exe integrate install
 ```
   
-### 2. Build
+### 3. Build
 #### CMake
 ```
 > mkdir build
@@ -34,7 +41,7 @@ Rewrite `HOUDINI_ROOT` in `CMakePresets.json`
 `CMake: Select Build Preset`  
 `CMake: Build`  
 
-### 3. houdini.env
+### 4. houdini.env
 ```
 ...
 PATH = $PATH;$HOUDINI_USER_PREF_DIR/bin
