@@ -36,6 +36,12 @@ Rewrite `HOUDINI_ROOT` in `CMakePresets.json`
 ```
   
 #### VSCode CMake tools
+.vscode/settings.json
+```
+...
+"cmake.useCMakePresets": "always",
+...
+```
 `CMake: Select Configure Preset`  
 `CMake: Configure`  
 `CMake: Select Build Preset`  
