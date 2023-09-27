@@ -54,13 +54,13 @@ private:
     using VertexDescriptor = boost::graph_traits<TriangleMesh>::vertex_descriptor;
     using FaceDescriptor = TriangleMesh::Face_index;
 
-    std::tuple<TriangleMesh, std::vector<VertexDescriptor>> toSurfaceMesh(GU_Detail* inputGeo) const
+    std::tuple<TriangleMesh, std::vector<VertexDescriptor>> toSurfaceMesh(GU_Detail* geo) const
     {
     	TriangleMesh triangleMesh;
     	GA_Offset pointOffset;
-    	GA_RWHandleV3 Phandle(inputGeo->findAttribute(GA_ATTRIB_POINT, "P"));
+    	GA_RWHandleV3 Phandle(geo->findAttribute(GA_ATTRIB_POINT, "P"));
     	std::vector<VertexDescriptor> indexmap;
-    	GA_FOR_ALL_PTOFF(inputGeo, pointOffset)
+    	GA_FOR_ALL_PTOFF(geo, pointOffset)
     	{
     		auto&& posHou = Phandle.get(pointOffset);
     		auto&& posCGAL = Point3(posHou.x(), posHou.y(), posHou.z());
@@ -69,29 +69,39 @@ private:
     	}
 
         GEO_Primitive *prim;
-    	std::vector<int32> pointOffsetMap;
-    	GA_FOR_ALL_PRIMITIVES(inputGeo, prim)
-    	{
-    		GA_Range ptRange = prim->getPointRange(true);
-    		for (GA_Iterator it(ptRange); !it.atEnd(); ++it)
-    		{
-    			GA_Offset ptoffset = (*it);
-    			pointOffsetMap.push_back((int32)ptoffset);
-    		}
-    	}
+    	std::vector<int32> pointIndexMap;
+        GA_FOR_ALL_PRIMITIVES(geo, prim)
+        {
+            GA_Range pointRange = prim->getPointRange();
+            for (GA_Iterator it(pointRange); !it.atEnd(); ++it)
+            {
+                GA_Offset pointOffset = (*it);
+                GA_Index pointIndex = geo->pointIndex(pointOffset);
 
-    	for (size_t i =0;i< pointOffsetMap.size()/3;i++)
+                pointIndexMap.push_back((int32)pointIndex);
+            }
+        }
+
+        constexpr int PolyVerticesSize = 3;
+    	for (size_t i = 0; i < pointIndexMap.size()/PolyVerticesSize; i++)
     	{
-    		triangleMesh.add_face(indexmap[pointOffsetMap[i*3]], indexmap[pointOffsetMap[i*3+1]], indexmap[pointOffsetMap[i*3+2]]);
+    		auto&& faceIndex = triangleMesh.add_face(
+                    indexmap[pointIndexMap[i*PolyVerticesSize]],
+                    indexmap[pointIndexMap[i*PolyVerticesSize+1]],
+                    indexmap[pointIndexMap[i*PolyVerticesSize+2]]
+                );
+
+            if(faceIndex == TriangleMesh::null_face()) {
+                std::cout << "null face" << std::endl;
+            }
     	}
 
         return {triangleMesh, indexmap};
     }
 
-    auto smoothing(TriangleMesh&& triangleMesh) const
+    auto smoothing(TriangleMesh&& triangleMesh, const int iteration, const float& angle) const
     {
         auto&& eif = get(CGAL::edge_is_feature, triangleMesh);
-        int32 angle = 60; //TODO: パラメータ化
         CGAL::Polygon_mesh_processing::detect_sharp_edges(triangleMesh, angle, eif);
         int sharp_counter = 0;
         for(auto&& e : edges(triangleMesh)) 
@@ -102,25 +112,30 @@ private:
             }
         }
 
-        unsigned int nb_iterations = 10; //TODO: パラメータ化
         CGAL::Polygon_mesh_processing::angle_and_area_smoothing(
                         triangleMesh,
-                        CGAL::parameters::number_of_iterations(nb_iterations)
+                        CGAL::parameters::number_of_iterations(iteration)
                             .use_safety_constraints(false) // authorize all moves
                             .edge_is_constrained_map(eif)
                     );
+
+        CGAL::IO::write_PLY("C:\\Users\\thu\\3D Objects\\testSmooth_smoothed.ply", triangleMesh);
 
         return triangleMesh;
     }
 
     auto transferP(GU_Detail* geo, std::vector<VertexDescriptor>&& indexMap, TriangleMesh&& smoothedMesh) const
     {
+        //TODO: Pをセットしたいポイントの指定が間違ってる
+
     	GA_RWHandleV3 Phandle(geo->findAttribute(GA_ATTRIB_POINT, "P"));
     	GA_Offset pointOffset;
+
     	GA_FOR_ALL_PTOFF(geo, pointOffset)
     	{
-            auto&& pos = smoothedMesh.point(indexMap[static_cast<int>(pointOffset)]);
-            Phandle.set(pointOffset, UT_Vector3F(pos.x(),pos.y(),pos.z()));
+            auto&& index = geo->pointIndex(pointOffset);
+            auto&& pos = smoothedMesh.point(indexMap[index]);
+            Phandle.set(indexMap[index].idx(), UT_Vector3F(pos.x(),pos.y(),pos.z()));
     	}
     }
 
@@ -132,10 +147,18 @@ public:
         auto&& inputGeo = cookparms.inputGeo(0);
         UT_ASSERT(inputGeo);
 
-        outputGeo->replaceWith(*inputGeo);
+        outputGeo->clearAndDestroy();
+        outputGeo->copy(*inputGeo);
 
         auto&& [triangleMesh, indexmap] = this->toSurfaceMesh(outputGeo);
-        auto&& smoothedMesh = this->smoothing(std::move(triangleMesh));
+
+        auto&& sopParameter = cookparms.parms<SOP_Angle_And_Area_SmoothingParms>();
+        auto&& smoothedMesh = this->smoothing(
+                std::move(triangleMesh),
+                sopParameter.getIteration(),
+                sopParameter.getConstrainededgeangle()
+            );
+
         this->transferP(outputGeo, std::move(indexmap), std::move(smoothedMesh));
     }
 

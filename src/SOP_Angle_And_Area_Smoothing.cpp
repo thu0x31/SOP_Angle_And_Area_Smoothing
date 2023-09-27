@@ -5,13 +5,29 @@
 
 constexpr const char* DSFILE = R"THEDSFILE(
 {
-    name        parameters
+    name	parameters
     parm {
-        name    "rad"
-        label   "Radius"
-        type    vector2
-        size    2           // 2 components in a vector2
-        default { "1" "0.3" } // Outside and inside radius defaults
+        name    "iteration"
+        label   "iteration"
+        type    integer
+        default { "0" }
+        range   { 0 100 }
+        parmtag { "script_callback_language" "python" }
+    }
+    parm {
+        name    "constrainedEdgeAngle"
+        label   "constrainedEdgeAngle"
+        type    float
+        default { "0" }
+        range   { -360 360 }
+        parmtag { "script_callback_language" "python" }
+    }
+    parm {
+        name    "safetyConstraints"
+        label   "safetyConstraints"
+        type    toggle
+        default { "0" }
+        parmtag { "script_callback_language" "python" }
     }
 }
 )THEDSFILE";
