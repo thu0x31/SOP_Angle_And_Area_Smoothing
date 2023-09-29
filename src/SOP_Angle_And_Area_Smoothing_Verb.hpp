@@ -5,6 +5,8 @@
 
 #include <GA/GA_Detail.h>
 #include <GA/GA_GBMacros.h>
+#include <GA/GA_PolyCounts.h>
+#include <GEO/GEO_PrimPoly.h>
 #include <GEO/GEO_Point.h>
 #include <GU/GU_Detail.h>
 #include <OP/OP_Operator.h>
@@ -116,6 +118,7 @@ private:
                     .use_area_smoothing(parms.getUseareasmoothing())
                     .use_angle_smoothing(parms.getUseanglesmoothing())
                     .edge_is_constrained_map(eif)
+                    .use_Delaunay_flips(parms.getUsedelaunayflips())
             );
         } else {
             CGAL::Polygon_mesh_processing::angle_and_area_smoothing(
@@ -124,10 +127,9 @@ private:
                     .use_safety_constraints(parms.getSafetyconstraints())
                     .use_area_smoothing(parms.getUseareasmoothing())
                     .use_angle_smoothing(parms.getUseanglesmoothing())
+                    .use_Delaunay_flips(parms.getUsedelaunayflips())
             );
         }
-
-        // CGAL::IO::write_PLY("C:\\Users\\thu\\3D Objects\\testSmooth_smoothed.ply", triangleMesh);
 
         return triangleMesh;
     }
@@ -145,6 +147,45 @@ private:
     	}
     }
 
+    auto toHoudiniGeo(GU_Detail* geo, TriangleMesh&& smoothedMesh) const
+    {
+        geo->clearAndDestroy();
+
+        std::map<CGAL::Surface_mesh<Point3>::Vertex_index, GA_Offset> vertexMap;
+        const GA_Size&& numVertices = smoothedMesh.num_vertices();
+        const GA_Offset&& startptoff = geo->appendPointBlock(numVertices);
+        exint&& pointIndex = 0;
+        for (auto&& v : smoothedMesh.vertices())
+        {
+            auto&& p = smoothedMesh.point(v);
+            GA_Offset&& ptOffset = startptoff + pointIndex;
+            geo->setPos3(ptOffset, UT_Vector3(p.x(), p.y(), p.z()));
+            vertexMap[v] = ptOffset;
+
+            pointIndex++;
+        }
+
+        std::vector<int> indices;
+        for (auto&& f : smoothedMesh.faces())
+        {
+            geo->appendPrimitive(GA_PRIMPOLY);
+            for (auto&& v : vertices_around_face(smoothedMesh.halfedge(f), smoothedMesh))
+            {
+                indices.push_back(vertexMap[v]);
+            }
+        }
+
+        GA_PolyCounts polyCounts;
+        polyCounts.append(3, smoothedMesh.number_of_faces());
+        GEO_PrimPoly::buildBlock(
+                            geo,
+                            static_cast<GA_Offset>(0),
+                            static_cast<GA_Size>(smoothedMesh.number_of_vertices()),
+                            polyCounts,
+                            indices.data()
+                        );
+    }
+
 public:
     virtual void cook(const CookParms &cookparms) const
     {
@@ -152,6 +193,8 @@ public:
 
         auto&& inputGeo = cookparms.inputGeo(0);
         UT_ASSERT(inputGeo);
+
+        // TODO: is Triangle
 
         outputGeo->clearAndDestroy();
         outputGeo->copy(*inputGeo);
@@ -161,7 +204,10 @@ public:
         auto&& sopParameter = cookparms.parms<SOP_Angle_And_Area_SmoothingParms>();
         auto&& smoothedMesh = this->smoothing(std::move(triangleMesh), sopParameter);
 
-        this->transferP(outputGeo, std::move(indexmap), std::move(smoothedMesh));
+        if(sopParameter.getUsedelaunayflips()) {
+            this->toHoudiniGeo(outputGeo, std::move(smoothedMesh));
+        } else {
+            this->transferP(outputGeo, std::move(indexmap), std::move(smoothedMesh));
+        }
     }
-
 };

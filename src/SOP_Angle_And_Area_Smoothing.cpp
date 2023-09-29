@@ -11,7 +11,7 @@ constexpr const char* DSFILE = R"THEDSFILE(
         label   "iteration"
         type    integer
         default { "0" }
-        range   { 1 100 }
+        range   { 1 50 }
         parmtag { "script_callback_language" "python" }
     }
     parm {
@@ -35,6 +35,13 @@ constexpr const char* DSFILE = R"THEDSFILE(
         default { "0" }
         parmtag { "script_callback_language" "python" }
     }
+    parm {
+        name    "useDelaunayflips"
+        label   "useDelaunayflips"
+        type    toggle
+        default { "0" }
+        parmtag { "script_callback_language" "python" }
+    }
     groupsimple {
         name    "constrainedEdge"
         label   "constrainedEdge"
@@ -52,6 +59,7 @@ constexpr const char* DSFILE = R"THEDSFILE(
             label   "angle"
             type    float
             default { "0" }
+            disablewhen "{ useConstrainedEdge == 0 }"
             range   { -360 360 }
             parmtag { "script_callback_language" "python" }
         }
