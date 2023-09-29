@@ -99,35 +99,41 @@ private:
         return {triangleMesh, indexmap};
     }
 
-    auto smoothing(TriangleMesh&& triangleMesh, const int iteration, const float& angle) const
+    auto smoothing(TriangleMesh&& triangleMesh, const SOP_Angle_And_Area_SmoothingParms& parms) const
     {
         auto&& eif = get(CGAL::edge_is_feature, triangleMesh);
-        CGAL::Polygon_mesh_processing::detect_sharp_edges(triangleMesh, angle, eif);
-        int sharp_counter = 0;
-        for(auto&& e : edges(triangleMesh)) 
+        CGAL::Polygon_mesh_processing::detect_sharp_edges(triangleMesh, parms.getAngle(), eif);
+        for(auto&& e : edges(triangleMesh))
         {
-            if(get(eif, e)) 
-            {
-                ++sharp_counter;
-            }
+            get(eif, e);
         }
 
-        CGAL::Polygon_mesh_processing::angle_and_area_smoothing(
-                        triangleMesh,
-                        CGAL::parameters::number_of_iterations(iteration)
-                            .use_safety_constraints(false) // authorize all moves
-                            .edge_is_constrained_map(eif)
-                    );
+        if (parms.getUseconstrainededge()) {
+            CGAL::Polygon_mesh_processing::angle_and_area_smoothing(
+                triangleMesh,
+                CGAL::parameters::number_of_iterations(parms.getIteration())
+                    .use_safety_constraints(parms.getSafetyconstraints())
+                    .use_area_smoothing(parms.getUseareasmoothing())
+                    .use_angle_smoothing(parms.getUseanglesmoothing())
+                    .edge_is_constrained_map(eif)
+            );
+        } else {
+            CGAL::Polygon_mesh_processing::angle_and_area_smoothing(
+                triangleMesh,
+                CGAL::parameters::number_of_iterations(parms.getIteration())
+                    .use_safety_constraints(parms.getSafetyconstraints())
+                    .use_area_smoothing(parms.getUseareasmoothing())
+                    .use_angle_smoothing(parms.getUseanglesmoothing())
+            );
+        }
 
-        CGAL::IO::write_PLY("C:\\Users\\thu\\3D Objects\\testSmooth_smoothed.ply", triangleMesh);
+        // CGAL::IO::write_PLY("C:\\Users\\thu\\3D Objects\\testSmooth_smoothed.ply", triangleMesh);
 
         return triangleMesh;
     }
 
     auto transferP(GU_Detail* geo, std::vector<VertexDescriptor>&& indexMap, TriangleMesh&& smoothedMesh) const
     {
-        //TODO: Pをセットしたいポイントの指定が間違ってる
-
     	GA_RWHandleV3 Phandle(geo->findAttribute(GA_ATTRIB_POINT, "P"));
     	GA_Offset pointOffset;
 
@@ -153,11 +159,7 @@ public:
         auto&& [triangleMesh, indexmap] = this->toSurfaceMesh(outputGeo);
 
         auto&& sopParameter = cookparms.parms<SOP_Angle_And_Area_SmoothingParms>();
-        auto&& smoothedMesh = this->smoothing(
-                std::move(triangleMesh),
-                sopParameter.getIteration(),
-                sopParameter.getConstrainededgeangle()
-            );
+        auto&& smoothedMesh = this->smoothing(std::move(triangleMesh), sopParameter);
 
         this->transferP(outputGeo, std::move(indexmap), std::move(smoothedMesh));
     }

@@ -11,15 +11,7 @@ constexpr const char* DSFILE = R"THEDSFILE(
         label   "iteration"
         type    integer
         default { "0" }
-        range   { 0 100 }
-        parmtag { "script_callback_language" "python" }
-    }
-    parm {
-        name    "constrainedEdgeAngle"
-        label   "constrainedEdgeAngle"
-        type    float
-        default { "0" }
-        range   { -360 360 }
+        range   { 1 100 }
         parmtag { "script_callback_language" "python" }
     }
     parm {
@@ -28,6 +20,41 @@ constexpr const char* DSFILE = R"THEDSFILE(
         type    toggle
         default { "0" }
         parmtag { "script_callback_language" "python" }
+    }
+    parm {
+        name    "useAngleSmoothing"
+        label   "useAngleSmoothing"
+        type    toggle
+        default { "0" }
+        parmtag { "script_callback_language" "python" }
+    }
+    parm {
+        name    "useAreaSmoothing"
+        label   "useAreaSmoothing"
+        type    toggle
+        default { "0" }
+        parmtag { "script_callback_language" "python" }
+    }
+    groupsimple {
+        name    "constrainedEdge"
+        label   "constrainedEdge"
+        grouptag { "group_type" "simple" }
+
+        parm {
+            name    "useConstrainedEdge"
+            label   "use"
+            type    toggle
+            default { "0" }
+            parmtag { "script_callback_language" "python" }
+        }
+        parm {
+            name    "angle"
+            label   "angle"
+            type    float
+            default { "0" }
+            range   { -360 360 }
+            parmtag { "script_callback_language" "python" }
+        }
     }
 }
 )THEDSFILE";
